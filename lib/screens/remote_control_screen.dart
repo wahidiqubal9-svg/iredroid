@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/ir_device.dart';
+import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
 
 class RemoteControlScreen extends StatefulWidget {
@@ -272,6 +273,7 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
   }
 
   void _transmitIR(IRButton button) async {
+    Haptics.tap();
     try {
       // Simple transmission without repeats
       await IRTransmitter.transmitButton(button);

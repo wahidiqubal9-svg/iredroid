@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- IR transmitter permission -->
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
+
+    <!-- Haptic feedback on remote button presses -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     
     <!-- Feature requirement for IR blaster -->
     <uses-feature 
@@ -8,7 +11,7 @@
         android:required="false" />
     
     <application
-        android:label="iredroid"
+        android:label="Remote"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

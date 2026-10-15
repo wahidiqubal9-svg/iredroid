@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/ir_device.dart';
+import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
 import '../widgets/pinch_to_exit.dart';
 
@@ -73,6 +74,7 @@ class FullScreenIRRemote extends StatelessWidget {
         final button = device.buttons[index];
         return ElevatedButton(
           onPressed: () async {
+            Haptics.tap();
             try {
               await IRTransmitter.transmitButton(button);
             } catch (_) {

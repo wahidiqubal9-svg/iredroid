@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/ir_device.dart';
+import '../utils/haptics.dart';
 import '../utils/ir_file_parser.dart';
+import '../utils/voltas_prefs.dart';
+import '../widgets/mini_remote.dart';
 import 'full_screen_ir_remote.dart';
 import 'voltas_remote_screen.dart';
 
-/// A single place that lists every saved remote: built-in smart remotes
+/// A single place that lists every saved remote: the built-in smart remote
 /// (Voltas AC) and any remotes the user saved (favorites / custom).
 /// Tapping one opens it full-screen; pinch in with two fingers to close.
 class RemotesTab extends StatefulWidget {
@@ -21,6 +24,7 @@ class RemotesTab extends StatefulWidget {
 class _RemotesTabState extends State<RemotesTab> {
   List<IRDevice> _saved = [];
   bool _loading = true;
+  int _voltasVariety = 1;
 
   @override
   void initState() {
@@ -54,25 +58,72 @@ class _RemotesTabState extends State<RemotesTab> {
     } catch (_) {
       // no saved remotes
     }
+    final variety = await VoltasPrefs.getVariety();
     if (!mounted) return;
     setState(() {
       _saved = devices;
+      _voltasVariety = variety;
       _loading = false;
     });
   }
 
   void _openVoltas() {
+    Haptics.tap();
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const VoltasRemoteScreen()),
-    );
+      MaterialPageRoute(
+        builder: (_) => VoltasRemoteScreen(initialRemote: _voltasVariety),
+      ),
+    ).then((_) => _load());
   }
 
   void _openDevice(IRDevice device) {
+    Haptics.tap();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => FullScreenIRRemote(device: device)),
     );
+  }
+
+  Future<void> _pickVariety() async {
+    Haptics.select();
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF161616),
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Which Voltas remote works for your AC?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ...List.generate(
+                VoltasPrefs.varietyCount,
+                (i) => ListTile(
+                  dense: true,
+                  title: Text('Remote ${i + 1}'),
+                  trailing: (i + 1) == _voltasVariety
+                      ? const Icon(Icons.check)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, i + 1),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (chosen != null) {
+      await VoltasPrefs.setVariety(chosen);
+      if (!mounted) return;
+      setState(() => _voltasVariety = chosen);
+    }
   }
 
   @override
@@ -93,12 +144,7 @@ class _RemotesTabState extends State<RemotesTab> {
               style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 20),
           _sectionTitle('Smart remotes'),
-          _remoteCard(
-            icon: Icons.ac_unit,
-            title: 'Voltas AC',
-            subtitle: 'Full AC control · 11 varieties',
-            onTap: _openVoltas,
-          ),
+          _voltasCard(),
           const SizedBox(height: 20),
           _sectionTitle('Saved remotes'),
           if (_saved.isEmpty)
@@ -123,6 +169,29 @@ class _RemotesTabState extends State<RemotesTab> {
     );
   }
 
+  Widget _voltasCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: const MiniRemotePreview(digital: true),
+        title: const Text('Voltas AC'),
+        subtitle: Text('Full AC control · Remote $_voltasVariety'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Change remote variety',
+              icon: const Icon(Icons.tune),
+              onPressed: _pickVariety,
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: _openVoltas,
+      ),
+    );
+  }
+
   Widget _sectionTitle(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -143,8 +212,7 @@ class _RemotesTabState extends State<RemotesTab> {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: Icon(icon,
-            size: 28, color: Theme.of(context).colorScheme.primary),
+        leading: MiniRemotePreview(icon: icon),
         title: Text(title),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),

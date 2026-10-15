@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/voltas.dart';
+import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
+import '../utils/voltas_prefs.dart';
 import '../widgets/pinch_to_exit.dart';
 
 /// Full-screen Voltas AC remote with a digital display.
@@ -13,7 +15,8 @@ import '../widgets/pinch_to_exit.dart';
 ///
 /// Pinch in with two fingers to close the remote.
 class VoltasRemoteScreen extends StatefulWidget {
-  /// Optional 1-based "Remote N" variety to preselect (1..11).
+  /// Optional 1-based "Remote N" variety to use. When null, the previously
+  /// saved working variety is used (see [VoltasPrefs]).
   final int? initialRemote;
 
   const VoltasRemoteScreen({super.key, this.initialRemote});
@@ -46,10 +49,9 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   Future<void> _load() async {
     try {
       final dataset = await VoltasDataset.load();
+      final wanted = widget.initialRemote ?? await VoltasPrefs.getVariety();
       if (!mounted) return;
-      final wanted = widget.initialRemote;
-      final remote = (wanted != null &&
-              dataset.remotes.any((r) => r.number == wanted))
+      final remote = dataset.remotes.any((r) => r.number == wanted)
           ? dataset.remotes.firstWhere((r) => r.number == wanted)
           : dataset.remotes.first;
       setState(() {
@@ -67,14 +69,6 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   bool get _modeHasTemp => _r.modeHasTemp(_mode);
   bool get _modeHasFan => _r.modeHasFan(_mode);
   String get _tempText => _modeHasTemp ? '$_temp' : '--';
-
-  void _selectRemote(int number) {
-    final remote = _dataset!.remotes.firstWhere((r) => r.number == number);
-    setState(() {
-      _remote = remote;
-      _temp = _temp.clamp(remote.tempMin, remote.tempMax);
-    });
-  }
 
   Future<void> _sendSignal(VoltasSignal? signal) async {
     if (signal == null) {
@@ -94,6 +88,7 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   }
 
   Future<void> _togglePower() async {
+    Haptics.tap();
     if (_acOn) {
       setState(() => _acOn = false);
       await _sendSignal(_r.powerOff);
@@ -106,16 +101,19 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   }
 
   void _setMode(int mode) {
+    Haptics.select();
     setState(() => _mode = mode);
     _sendState();
   }
 
   void _setFan(int fan) {
+    Haptics.select();
     setState(() => _fan = fan);
     _sendState();
   }
 
   void _setTemp(int temp) {
+    Haptics.tap();
     setState(() => _temp = temp.clamp(_r.tempMin, _r.tempMax));
     _sendState();
   }
@@ -140,41 +138,6 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
       default:
         return Icons.mode;
     }
-  }
-
-  void _showVarietySheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161616),
-      showDragHandle: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Text('Remote variety',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              ..._dataset!.remotes.map(
-                (r) => ListTile(
-                  dense: true,
-                  title: Text('Remote ${r.number}'),
-                  trailing: r.number == _r.number
-                      ? const Icon(Icons.check, color: _accent)
-                      : null,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _selectRemote(r.number);
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -245,11 +208,6 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
                 style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ),
           const Spacer(),
-          IconButton(
-            tooltip: 'Remote variety',
-            icon: const Icon(Icons.tune),
-            onPressed: _showVarietySheet,
-          ),
           IconButton(
             tooltip: 'Close',
             icon: const Icon(Icons.keyboard_arrow_down),
@@ -357,7 +315,8 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
               ),
               const SizedBox(width: 4),
               const Text('°C',
-                  style: TextStyle(fontFamily: 'monospace', fontSize: 22, color: _lcdInk)),
+                  style: TextStyle(
+                      fontFamily: 'monospace', fontSize: 22, color: _lcdInk)),
             ],
           ),
           const SizedBox(height: 4),
@@ -442,7 +401,8 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         children: [
           _round(
             icon: Icons.remove,
-            onTap: enabled && _temp > _r.tempMin ? () => _setTemp(_temp - 1) : null,
+            onTap:
+                enabled && _temp > _r.tempMin ? () => _setTemp(_temp - 1) : null,
           ),
           Container(
             width: 96,
@@ -453,7 +413,8 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
           ),
           _round(
             icon: Icons.add,
-            onTap: enabled && _temp < _r.tempMax ? () => _setTemp(_temp + 1) : null,
+            onTap:
+                enabled && _temp < _r.tempMax ? () => _setTemp(_temp + 1) : null,
           ),
         ],
       ),
@@ -544,14 +505,13 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     );
   }
 
-  Widget _round({required IconData icon, VoidCallback? onTap, Color? color}) {
+  Widget _round({required IconData icon, VoidCallback? onTap}) {
     return IconButton(
       onPressed: onTap,
       icon: Icon(icon),
       iconSize: 26,
       style: IconButton.styleFrom(
-        backgroundColor: color ?? (_accent.withValues(alpha: 0.15)),
-        foregroundColor: color != null ? Colors.white : null,
+        backgroundColor: _accent.withValues(alpha: 0.15),
         minimumSize: const Size(58, 58),
       ),
     );

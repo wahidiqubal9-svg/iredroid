@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'IReDroid',
+      title: 'Remote',
       theme: ThemeData(
         // Flipper Zero inspired theme - Orange and dark colors
         colorScheme: const ColorScheme.dark(
