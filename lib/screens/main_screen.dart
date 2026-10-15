@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'custom_tab.dart';
 import 'flipper_tab.dart';
 import 'fuzzer_tab.dart';
+import 'remotes_tab.dart';
 import 'settings_tab.dart';
-import 'voltas_remote_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -38,7 +38,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           tabs: const [
             Tab(icon: Icon(Icons.add_circle_outline), text: 'Custom'),
             Tab(icon: Icon(Icons.devices), text: 'Flipper'),
-            Tab(icon: Icon(Icons.ac_unit), text: 'Voltas'),
+            Tab(icon: Icon(Icons.settings_remote), text: 'Remotes'),
             Tab(icon: Icon(Icons.shuffle), text: 'Fuzzer'),
             Tab(icon: Icon(Icons.settings), text: 'Settings'),
           ],
@@ -49,7 +49,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         children: [
           CustomTab(),
           FlipperTab(),
-          VoltasRemoteScreen(),
+          RemotesTab(),
           FuzzerTab(),
           SettingsTab(),
         ],

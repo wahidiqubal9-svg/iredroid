@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/voltas.dart';
 import '../utils/ir_transmitter.dart';
+import '../widgets/pinch_to_exit.dart';
 
-/// Stateful Voltas air-conditioner remote.
+/// Full-screen Voltas AC remote with a digital display.
 ///
-/// The Voltas protocol transmits the *entire* AC state in every frame
-/// (mode + fan + temperature), so every control change re-sends the state.
-/// The raw IR timings were reverse engineered from the Play Store app
-/// "Remote For Voltas AC" (com.matanyamin.voltasacremotecontrol).
+/// The Voltas protocol sends the *entire* AC state (mode + fan + temperature)
+/// in every frame, so each control change re-sends the full state. Raw IR
+/// timings were reverse engineered from the Play Store app "Remote For Voltas
+/// AC" (com.matanyamin.voltasacremotecontrol).
+///
+/// Pinch in with two fingers to close the remote.
 class VoltasRemoteScreen extends StatefulWidget {
   /// Optional 1-based "Remote N" variety to preselect (1..11).
   final int? initialRemote;
@@ -20,6 +23,11 @@ class VoltasRemoteScreen extends StatefulWidget {
 }
 
 class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
+  static const Color _bg = Color(0xFF0A0A0A);
+  static const Color _lcdBg = Color(0xFF03130C);
+  static const Color _lcdInk = Color(0xFF6EE7A0);
+  static const Color _accent = Color(0xFFFF8C00);
+
   VoltasDataset? _dataset;
   VoltasRemote? _remote;
   Object? _error;
@@ -56,9 +64,9 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   }
 
   VoltasRemote get _r => _remote!;
-
   bool get _modeHasTemp => _r.modeHasTemp(_mode);
   bool get _modeHasFan => _r.modeHasFan(_mode);
+  String get _tempText => _modeHasTemp ? '$_temp' : '--';
 
   void _selectRemote(int number) {
     final remote = _dataset!.remotes.firstWhere((r) => r.number == number);
@@ -70,7 +78,7 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
 
   Future<void> _sendSignal(VoltasSignal? signal) async {
     if (signal == null) {
-      _toast('No code for this combination on Remote ${_r.number}');
+      _toast('No code on Remote ${_r.number} for this combination');
       return;
     }
     try {
@@ -80,7 +88,6 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     }
   }
 
-  /// Re-send the full AC state (only when the unit is powered on).
   Future<void> _sendState() async {
     if (!_acOn) return;
     await _sendSignal(_r.codeFor(_mode, _fan, _temp));
@@ -135,230 +142,370 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Voltas AC'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: _buildBody(),
+  void _showVarietySheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF161616),
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text('Remote variety',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              ..._dataset!.remotes.map(
+                (r) => ListTile(
+                  dense: true,
+                  title: Text('Remote ${r.number}'),
+                  trailing: r.number == _r.number
+                      ? const Icon(Icons.check, color: _accent)
+                      : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _selectRemote(r.number);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildBody() {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      body: PinchToExit(
+        child: SafeArea(
+          child: (_remote == null || _dataset == null)
+              ? _buildLoading()
+              : _buildContent(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
     if (_error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Failed to load Voltas data:\n$_error'),
+          child: Text('Failed to load Voltas data:\n$_error',
+              textAlign: TextAlign.center),
         ),
       );
     }
-    if (_dataset == null || _remote == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return const Center(child: CircularProgressIndicator());
+  }
 
-    final modes = _dataset!.modeLabels;
-    final fans = _dataset!.fanLabels;
+  Widget _buildContent() {
+    return Column(
+      children: [
+        _buildTopBar(),
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: _buildRemoteBody(),
+              ),
+            ),
+          ),
+        ),
+        _buildHint(),
+      ],
+    );
+  }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Row(
         children: [
-          _buildRemotePicker(),
-          const SizedBox(height: 16),
-          _buildDisplay(),
-          const SizedBox(height: 16),
-          _buildPowerButton(),
-          const SizedBox(height: 20),
-          _buildModeSelector(modes),
-          const SizedBox(height: 20),
-          _buildFanSelector(fans),
-          const SizedBox(height: 20),
-          _buildTempControl(),
-          const SizedBox(height: 24),
-          const Text(
-            'Voltas AC units encode the whole state (mode + fan + temp) in '
-            'every frame, so each change re-sends the full state. If nothing '
-            'responds, try another remote variety above.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Text('Voltas',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Text('AC · Remote ${_r.number}',
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Remote variety',
+            icon: const Icon(Icons.tune),
+            onPressed: _showVarietySheet,
+          ),
+          IconButton(
+            tooltip: 'Close',
+            icon: const Icon(Icons.keyboard_arrow_down),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRemotePicker() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            const Icon(Icons.settings_remote, size: 20),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Remote variety')),
-            DropdownButton<int>(
-              value: _r.number,
-              underline: const SizedBox.shrink(),
-              items: _dataset!.remotes
-                  .map((r) => DropdownMenuItem(
-                        value: r.number,
-                        child: Text('Remote ${r.number}'),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) _selectRemote(v);
-              },
-            ),
-          ],
+  Widget _buildRemoteBody() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF232323), Color(0xFF111111)],
         ),
+        border: Border.all(color: Colors.white10),
+        boxShadow: const [
+          BoxShadow(color: Colors.black54, blurRadius: 24, offset: Offset(0, 12)),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildLcd(),
+          const SizedBox(height: 18),
+          _buildModeRow(),
+          const SizedBox(height: 14),
+          _buildFanRow(),
+          const SizedBox(height: 18),
+          _buildTempRow(),
+          const SizedBox(height: 18),
+          _buildPowerButton(),
+        ],
       ),
     );
   }
 
-  Widget _buildDisplay() {
-    return Card(
-      color: _acOn ? Theme.of(context).colorScheme.surface : Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(_modeIcon(_mode), size: 28),
-                const SizedBox(width: 10),
-                Text(
-                  _dataset!.modeLabels[_mode],
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildLcd() {
+    final fans = _dataset!.fanLabels;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+      decoration: BoxDecoration(
+        color: _lcdBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black, width: 2),
+        boxShadow: const [
+          BoxShadow(color: Colors.black87, blurRadius: 8, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(_modeIcon(_mode), size: 16, color: _lcdInk),
+                  const SizedBox(width: 6),
+                  Text(_dataset!.modeLabels[_mode].toUpperCase(),
+                      style: const TextStyle(
+                          color: _lcdInk, fontSize: 13, letterSpacing: 1.5)),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _acOn ? _lcdInk : Colors.redAccent,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(_acOn ? 'ON' : 'OFF',
+                      style: TextStyle(
+                          color: _acOn ? _lcdInk : Colors.redAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                _tempText,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 72,
+                  height: 1.0,
+                  color: _lcdInk,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: -2,
                 ),
-              ],
+              ),
+              const SizedBox(width: 4),
+              const Text('°C',
+                  style: TextStyle(fontFamily: 'monospace', fontSize: 22, color: _lcdInk)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.air, size: 14, color: _lcdInk),
+                  const SizedBox(width: 5),
+                  Text(
+                    _modeHasFan ? fans[_fan].toUpperCase() : '—',
+                    style: const TextStyle(
+                        color: _lcdInk, fontSize: 12, letterSpacing: 1),
+                  ),
+                ],
+              ),
+              Text('VOLTAS',
+                  style: TextStyle(
+                      color: _lcdInk.withValues(alpha: 0.5),
+                      fontSize: 11,
+                      letterSpacing: 2)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeRow() {
+    final modes = _dataset!.modeLabels;
+    return _labeledRow(
+      'MODE',
+      Row(
+        children: List.generate(modes.length, (i) {
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: _choice(
+                icon: _modeIcon(i),
+                label: modes[i],
+                selected: i == _mode,
+                onTap: () => _setMode(i),
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              _modeHasTemp ? '$_temp°C' : '--',
-              style: const TextStyle(fontSize: 56, fontWeight: FontWeight.bold),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildFanRow() {
+    final fans = _dataset!.fanLabels;
+    return _labeledRow(
+      'FAN',
+      Row(
+        children: List.generate(fans.length, (i) {
+          final enabled = _modeHasFan;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: _choice(
+                icon: i == fans.length - 1 ? Icons.autorenew : Icons.air,
+                label: fans[i],
+                selected: enabled && i == _fan,
+                enabled: enabled,
+                onTap: () => _setFan(i),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _acOn ? 'ON  •  Fan: ${_modeHasFan ? _dataset!.fanLabels[_fan] : '-'}'
-                    : 'OFF (press power)',
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildTempRow() {
+    final enabled = _modeHasTemp;
+    return _labeledRow(
+      'TEMPERATURE',
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _round(
+            icon: Icons.remove,
+            onTap: enabled && _temp > _r.tempMin ? () => _setTemp(_temp - 1) : null,
+          ),
+          Container(
+            width: 96,
+            alignment: Alignment.center,
+            child: Text('$_temp°C',
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold)),
+          ),
+          _round(
+            icon: Icons.add,
+            onTap: enabled && _temp < _r.tempMax ? () => _setTemp(_temp + 1) : null,
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPowerButton() {
-    return ElevatedButton.icon(
-      onPressed: _togglePower,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _acOn ? Colors.red : Colors.green,
-        foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(56),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _togglePower,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _acOn ? Colors.red : Colors.green,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(54),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        icon: const Icon(Icons.power_settings_new),
+        label: Text(_acOn ? 'TURN OFF' : 'TURN ON',
+            style: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1)),
       ),
-      icon: const Icon(Icons.power_settings_new),
-      label: Text(_acOn ? 'Turn OFF' : 'Turn ON',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
     );
   }
 
-  Widget _buildModeSelector(List<String> modes) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Row(
-          children: List.generate(modes.length, (i) {
-            final selected = i == _mode;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _choice(
-                  icon: _modeIcon(i),
-                  label: modes[i],
-                  selected: selected,
-                  onTap: () => _setMode(i),
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFanSelector(List<String> fans) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Fan speed', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Row(
-          children: List.generate(fans.length, (i) {
-            final enabled = _modeHasFan;
-            final selected = enabled && i == _fan;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _choice(
-                  icon: i == fans.length - 1 ? Icons.autorenew : Icons.air,
-                  label: fans[i],
-                  selected: selected,
-                  enabled: enabled,
-                  onTap: () => _setFan(i),
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTempControl() {
-    final enabled = _modeHasTemp;
-    return Opacity(
-      opacity: enabled ? 1 : 0.4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHint() {
+    return const Padding(
+      padding: EdgeInsets.only(top: 6, bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('Temperature', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _roundButton(
-                icon: Icons.remove,
-                onTap: enabled && _temp > _r.tempMin
-                    ? () => _setTemp(_temp - 1)
-                    : null,
-              ),
-              Container(
-                width: 90,
-                alignment: Alignment.center,
-                child: Text('$_temp°C',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              ),
-              _roundButton(
-                icon: Icons.add,
-                onTap: enabled && _temp < _r.tempMax
-                    ? () => _setTemp(_temp + 1)
-                    : null,
-              ),
-            ],
-          ),
-          Center(
-            child: Text('Range ${_r.tempMin}–${_r.tempMax}°C',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          ),
+          Icon(Icons.pinch, size: 14, color: Colors.white38),
+          SizedBox(width: 6),
+          Text('Pinch with two fingers to close',
+              style: TextStyle(fontSize: 11, color: Colors.white38)),
         ],
       ),
+    );
+  }
+
+  Widget _labeledRow(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(label,
+              style: const TextStyle(
+                  fontSize: 10, color: Colors.white54, letterSpacing: 1.5)),
+        ),
+        child,
+      ],
     );
   }
 
@@ -369,24 +516,26 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     required VoidCallback onTap,
     bool enabled = true,
   }) {
-    final color = Theme.of(context).colorScheme.primary;
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? color : Colors.grey.shade700),
-          color: selected ? color.withOpacity(0.15) : null,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: selected ? _accent : Colors.white12,
+              width: selected ? 1.5 : 1),
+          color: selected ? _accent.withValues(alpha: 0.12) : Colors.black26,
         ),
         child: Column(
           children: [
-            Icon(icon, size: 22, color: enabled ? null : Colors.grey),
-            const SizedBox(height: 4),
+            Icon(icon, size: 20, color: enabled ? null : Colors.white24),
+            const SizedBox(height: 3),
             Text(label,
-                style: const TextStyle(fontSize: 11),
-                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: enabled ? Colors.white70 : Colors.white24),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
           ],
@@ -395,13 +544,15 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     );
   }
 
-  Widget _roundButton({required IconData icon, VoidCallback? onTap}) {
+  Widget _round({required IconData icon, VoidCallback? onTap, Color? color}) {
     return IconButton(
       onPressed: onTap,
       icon: Icon(icon),
+      iconSize: 26,
       style: IconButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-        minimumSize: const Size(52, 52),
+        backgroundColor: color ?? (_accent.withValues(alpha: 0.15)),
+        foregroundColor: color != null ? Colors.white : null,
+        minimumSize: const Size(58, 58),
       ),
     );
   }

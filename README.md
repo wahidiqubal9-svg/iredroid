@@ -14,9 +14,10 @@ IReDroid is a free and open-source infrared remote control application for Andro
 - You can add/modify/implement custom remotes.
 - IReDroid uses Flipper Zero's database and has 1700+ devices.
 - You can fuzz devices in a category.
-- Built-in **Voltas AC** smart remote (mode / fan / temperature), with 11 code
-  varieties extracted from the *Remote For Voltas AC* app. Also bundled under
-  `ACs/Voltas` in the Flipper database.
+- Built-in **Voltas AC** smart remote (mode / fan / temperature) with 11 code
+  varieties, shown as a **full-screen digital remote** — pinch in with two
+  fingers to close. All saved remotes appear together under the **Remotes** tab.
+  The codes are also bundled under `ACs/Voltas` in the Flipper database.
 
 ## Supported IR Protocols
 
