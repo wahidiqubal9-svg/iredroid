@@ -18,12 +18,11 @@ class MyApp extends StatelessWidget {
           primary: Color(0xFFFF8C00), // Flipper Zero orange
           secondary: Color(0xFFFF8C00),
           surface: Color(0xFF1E1E1E), // Dark surface
-          background: Color(0xFF121212), // Very dark background
           onPrimary: Colors.black,
           onSecondary: Colors.black,
           onSurface: Colors.white,
-          onBackground: Colors.white,
         ),
+        scaffoldBackgroundColor: const Color(0xFF121212), // Very dark background
         useMaterial3: true,
         // App bar theme
         appBarTheme: const AppBarTheme(
@@ -55,7 +54,7 @@ class MyApp extends StatelessWidget {
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            // NOTE: CupertinoPageTransitionsBuilder is not const on newer Flutter.
           },
         ),
       ),
