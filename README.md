@@ -14,6 +14,9 @@ IReDroid is a free and open-source infrared remote control application for Andro
 - You can add/modify/implement custom remotes.
 - IReDroid uses Flipper Zero's database and has 1700+ devices.
 - You can fuzz devices in a category.
+- Built-in **Voltas AC** smart remote (mode / fan / temperature), with 11 code
+  varieties extracted from the *Remote For Voltas AC* app. Also bundled under
+  `ACs/Voltas` in the Flipper database.
 
 ## Supported IR Protocols
 
@@ -42,6 +45,26 @@ IReDroid is a free and open-source infrared remote control application for Andro
 2. Open in Android Studio or VS Code
 3. Run `flutter build apk --release`
 4. Install the generated APK
+
+### Automatic builds (GitHub Actions + Obtainium)
+Every push to `main`/`master` (or a `v*` tag) runs
+[`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml), which builds
+release APKs and attaches them to a GitHub Release. Track that repository in
+[Obtainium](https://github.com/ImranR98/Obtainium) to install and auto-update.
+
+To make updates install cleanly (stable signature), add these repository
+**Secrets** (Settings → Secrets and variables → Actions):
+
+- `KEYSTORE_BASE64` – base64 of your keystore (`.jks`), e.g. `base64 -w0 upload-keystore.jks`
+- `KEYSTORE_PASSWORD`, `KEY_PASSWORD`, `KEY_ALIAS`
+
+Create the keystore once with:
+```sh
+keytool -genkeypair -v -keystore upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+If the secrets are absent the workflow still builds, but the APK is signed with
+the ephemeral debug key (updates may require an uninstall first).
 
 ## Building from Source
 

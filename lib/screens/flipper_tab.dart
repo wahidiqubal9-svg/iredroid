@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../utils/flipper_irdb.dart';
 import 'remote_control_screen.dart';
 import 'custom_tab.dart';
+import 'voltas_remote_screen.dart';
 
 class FlipperTab extends StatefulWidget {
   const FlipperTab({super.key});
@@ -100,6 +101,20 @@ class _FlipperTabState extends State<FlipperTab> {
 
   Future<void> _openDevice(String deviceName) async {
     if (_selectedCategory == null || _selectedBrand == null) return;
+
+    // The bundled Voltas remotes open the dedicated stateful AC remote.
+    if (_selectedBrand == 'Voltas') {
+      final match = RegExp(r'Remote(\d+)').firstMatch(deviceName);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VoltasRemoteScreen(
+            initialRemote: match != null ? int.tryParse(match.group(1)!) : null,
+          ),
+        ),
+      );
+      return;
+    }
 
     showDialog(
       context: context,
