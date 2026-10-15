@@ -18,6 +18,9 @@ IReDroid is a free and open-source infrared remote control application for Andro
   varieties, shown as a **full-screen digital remote** — pinch in with two
   fingers to close. All saved remotes appear together under the **Remotes** tab.
   The codes are also bundled under `ACs/Voltas` in the Flipper database.
+- Built-in **Atomberg Fan** remote (Power, speeds 1-5, Boost, Timer, LED,
+  Sleep), styled like the original white IR remote; codes from the bundled
+  Flipper IRDB (`Fans/Atomberg`).
 
 ## Supported IR Protocols
 

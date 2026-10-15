@@ -8,6 +8,7 @@ import '../utils/haptics.dart';
 import '../utils/ir_file_parser.dart';
 import '../utils/voltas_prefs.dart';
 import '../widgets/mini_remote.dart';
+import 'atomberg_remote_screen.dart';
 import 'full_screen_ir_remote.dart';
 import 'voltas_remote_screen.dart';
 
@@ -85,6 +86,14 @@ class _RemotesTabState extends State<RemotesTab> {
     );
   }
 
+  void _openAtomberg() {
+    Haptics.tap();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AtombergRemoteScreen()),
+    );
+  }
+
   Future<void> _pickVariety() async {
     Haptics.select();
     final chosen = await showModalBottomSheet<int>(
@@ -145,6 +154,13 @@ class _RemotesTabState extends State<RemotesTab> {
           const SizedBox(height: 20),
           _sectionTitle('Smart remotes'),
           _voltasCard(),
+          const SizedBox(height: 10),
+          _remoteCard(
+            icon: Icons.toys,
+            title: 'Atomberg Fan',
+            subtitle: 'Power · speeds 1-5 · Boost/Timer/LED/Sleep',
+            onTap: _openAtomberg,
+          ),
           const SizedBox(height: 20),
           _sectionTitle('Saved remotes'),
           if (_saved.isEmpty)
