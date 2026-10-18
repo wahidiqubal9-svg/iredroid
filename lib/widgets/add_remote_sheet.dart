@@ -46,7 +46,7 @@ class AddRemoteSheet extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Bring in a remote or discover one with the fuzzer.',
+                'Add a remote from the library or let Auto Detect find one.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white54,
                 ),
@@ -61,12 +61,19 @@ class AddRemoteSheet extends StatelessWidget {
                 mainAxisSpacing: 12,
                 children: [
                   _ActionTile(
-                    icon: Icons.cloud_download_outlined,
-                    title: 'Flipper IRDB',
+                    icon: Icons.video_library_outlined,
+                    title: 'Remote Library',
                     subtitle: '1700+ devices',
                     accent: const Color(0xFFFF8C00),
                     onTap: () =>
                         Navigator.pop(context, AddRemoteAction.flipper),
+                  ),
+                  _ActionTile(
+                    icon: Icons.auto_fix_high,
+                    title: 'Auto Detect',
+                    subtitle: 'Find the right code',
+                    accent: const Color(0xFFC4B5FD),
+                    onTap: () => Navigator.pop(context, AddRemoteAction.fuzzer),
                   ),
                   _ActionTile(
                     icon: Icons.add_circle_outline,
@@ -82,13 +89,6 @@ class AddRemoteSheet extends StatelessWidget {
                     accent: const Color(0xFF86EFAC),
                     onTap: () =>
                         Navigator.pop(context, AddRemoteAction.importFile),
-                  ),
-                  _ActionTile(
-                    icon: Icons.shuffle,
-                    title: 'IR Fuzzer',
-                    subtitle: 'Find a working code',
-                    accent: const Color(0xFFC4B5FD),
-                    onTap: () => Navigator.pop(context, AddRemoteAction.fuzzer),
                   ),
                 ],
               ),

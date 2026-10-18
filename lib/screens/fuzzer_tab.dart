@@ -14,21 +14,25 @@ class FuzzerTab extends StatefulWidget {
 class _FuzzerTabState extends State<FuzzerTab> {
   static bool _hasLoaded = false;
   static List<String> _staticCategories = [];
-  
+
   bool _isLoading = false;
   List<String> _categories = [];
   String? _selectedCategory;
   List<String> _devices = [];
   String _powerMode = 'off'; // 'off' for power_off, 'on' for vol_up
-  
+
   bool _isFuzzing = false;
   int _currentIndex = 0;
   int _intervalMs = 1000;
   IRDevice? _lastTestedDevice;
   List<IRDevice> _workingDevices = [];
 
-  final TextEditingController _startIndexController = TextEditingController(text: '0');
-  final TextEditingController _intervalController = TextEditingController(text: '1000');
+  final TextEditingController _startIndexController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _intervalController = TextEditingController(
+    text: '1000',
+  );
 
   @override
   void initState() {
@@ -54,16 +58,16 @@ class _FuzzerTabState extends State<FuzzerTab> {
 
   Future<void> _loadCategories() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final available = await FlipperIRDB.isIRDBAvailable();
       if (available) {
         final categories = await FlipperIRDB.getCategories();
-        
+
         // Cache the data in static variables
         _hasLoaded = true;
         _staticCategories = categories;
-        
+
         setState(() {
           _categories = categories;
           _isLoading = false;
@@ -71,7 +75,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
       } else {
         _hasLoaded = true;
         _staticCategories = [];
-        
+
         setState(() {
           _isLoading = false;
         });
@@ -94,7 +98,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
     try {
       final brands = await FlipperIRDB.getBrands(category);
       List<String> allDevices = [];
-      
+
       // Load all devices from all brands in this category
       for (String brand in brands) {
         final devices = await FlipperIRDB.getDeviceFiles(category, brand);
@@ -102,12 +106,11 @@ class _FuzzerTabState extends State<FuzzerTab> {
           allDevices.add('$brand/$device');
         }
       }
-      
+
       setState(() {
         _devices = allDevices;
         _isLoading = false;
       });
-      
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -117,15 +120,18 @@ class _FuzzerTabState extends State<FuzzerTab> {
 
   Future<void> _startFuzzing() async {
     if (_selectedCategory == null || _devices.isEmpty) return;
-    
+
     final startIndex = int.tryParse(_startIndexController.text) ?? 0;
     final interval = int.tryParse(_intervalController.text) ?? 1000;
-    
+
     if (startIndex < 0 || startIndex >= _devices.length) {
-      _showSnackBar('Invalid start index. Must be between 0 and ${_devices.length - 1}', Colors.red);
+      _showSnackBar(
+        'Invalid start index. Must be between 0 and ${_devices.length - 1}',
+        Colors.red,
+      );
       return;
     }
-    
+
     setState(() {
       _isFuzzing = true;
       _currentIndex = startIndex;
@@ -155,7 +161,11 @@ class _FuzzerTabState extends State<FuzzerTab> {
     final device = parts[1];
 
     try {
-      final irDevice = await FlipperIRDB.parseDeviceFile(_selectedCategory!, brand, device);
+      final irDevice = await FlipperIRDB.parseDeviceFile(
+        _selectedCategory!,
+        brand,
+        device,
+      );
       if (irDevice != null) {
         setState(() {
           _lastTestedDevice = irDevice;
@@ -163,40 +173,46 @@ class _FuzzerTabState extends State<FuzzerTab> {
 
         // Find power-related buttons based on selected mode and flipper-irdb naming scheme
         List<IRButton> powerButtons = [];
-        
+
         if (_powerMode == 'off') {
           // Look for power off buttons using flipper-irdb naming scheme
-          final powerOffButton = irDevice.buttons.where(
-            (button) => button.name.toLowerCase().contains('power_off') ||
-                       button.name.toLowerCase().contains('power off') ||
-                       button.name.toLowerCase().contains('poweroff') ||
-                       button.name.toLowerCase().contains('off')
-          ).firstOrNull;
-          
+          final powerOffButton = irDevice.buttons
+              .where(
+                (button) =>
+                    button.name.toLowerCase().contains('power_off') ||
+                    button.name.toLowerCase().contains('power off') ||
+                    button.name.toLowerCase().contains('poweroff') ||
+                    button.name.toLowerCase().contains('off'),
+              )
+              .firstOrNull;
+
           if (powerOffButton != null) powerButtons.add(powerOffButton);
         } else if (_powerMode == 'on') {
           // Look for vol_up buttons (which are power on in flipper-irdb scheme)
-          final volUpButton = irDevice.buttons.where(
-            (button) => button.name.toLowerCase().contains('vol_up') ||
-                       button.name.toLowerCase().contains('volup') ||
-                       button.name.toLowerCase().contains('volume_up') ||
-                       button.name.toLowerCase().contains('volume up')
-          ).firstOrNull;
-          
+          final volUpButton = irDevice.buttons
+              .where(
+                (button) =>
+                    button.name.toLowerCase().contains('vol_up') ||
+                    button.name.toLowerCase().contains('volup') ||
+                    button.name.toLowerCase().contains('volume_up') ||
+                    button.name.toLowerCase().contains('volume up'),
+              )
+              .firstOrNull;
+
           if (volUpButton != null) powerButtons.add(volUpButton);
         }
-        
+
         // Fallback to general power button if specific mode button not found
         if (powerButtons.isEmpty) {
-          final generalPowerButton = irDevice.buttons.where(
-            (button) => button.isPowerButton
-          ).firstOrNull;
-          
+          final generalPowerButton = irDevice.buttons
+              .where((button) => button.isPowerButton)
+              .firstOrNull;
+
           if (generalPowerButton != null) {
             powerButtons.add(generalPowerButton);
           }
         }
-        
+
         // Fallback to first button if no power buttons found
         if (powerButtons.isEmpty) {
           powerButtons.add(irDevice.buttons.first);
@@ -205,13 +221,13 @@ class _FuzzerTabState extends State<FuzzerTab> {
         // Transmit all power buttons with frame repeat for better reliability
         for (int i = 0; i < powerButtons.length; i++) {
           await IRTransmitter.transmitButton(powerButtons[i]);
-          
+
           // Add small delay between multiple power commands (except for the last one)
           if (i < powerButtons.length - 1) {
             await Future.delayed(const Duration(milliseconds: 500));
           }
         }
-        
+
         setState(() {
           _currentIndex++;
         });
@@ -225,7 +241,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
 
     // Wait for the interval before next transmission
     await Future.delayed(Duration(milliseconds: _intervalMs));
-    
+
     // Continue with next device
     if (_isFuzzing) {
       await _fuzzDevice();
@@ -240,12 +256,13 @@ class _FuzzerTabState extends State<FuzzerTab> {
     if (_workingDevices.isNotEmpty) {
       _showSaveDialog();
     } else {
-      _showSnackBar('Fuzzing completed. No working devices found.', Colors.orange);
+      _showSnackBar('Scan completed. No working remote found.', Colors.orange);
     }
   }
 
   void _markAsWorking() {
-    if (_lastTestedDevice != null && !_workingDevices.contains(_lastTestedDevice)) {
+    if (_lastTestedDevice != null &&
+        !_workingDevices.contains(_lastTestedDevice)) {
       setState(() {
         _workingDevices.add(_lastTestedDevice!);
       });
@@ -257,7 +274,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Fuzzing Complete'),
+        title: const Text('Scan Complete'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,7 +283,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
             const SizedBox(height: 8),
             ..._workingDevices.map((device) => Text('• ${device.name}')),
             const SizedBox(height: 16),
-            const Text('Would you like to save these to My Remotes?'),
+            const Text('Save these working remotes to My Remotes?'),
           ],
         ),
         actions: [
@@ -291,7 +308,10 @@ class _FuzzerTabState extends State<FuzzerTab> {
       for (final device in _workingDevices) {
         await RemoteStore.saveFromFuzzer(device);
       }
-      _showSnackBar('${_workingDevices.length} device(s) saved to My Remotes!', Colors.green);
+      _showSnackBar(
+        '${_workingDevices.length} device(s) saved to My Remotes!',
+        Colors.green,
+      );
     } catch (e) {
       _showSnackBar('Failed to save devices: $e', Colors.red);
     }
@@ -315,7 +335,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Test power-off signals from multiple devices to find compatible remotes',
+            'Automatically test power signals across devices to find a remote that works',
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 16),
@@ -335,7 +355,9 @@ class _FuzzerTabState extends State<FuzzerTab> {
                   if (_isLoading)
                     const Center(child: CircularProgressIndicator())
                   else if (_categories.isEmpty)
-                    const Text('No categories available. Check IRDB installation.')
+                    const Text(
+                      'No categories available. Check IRDB installation.',
+                    )
                   else
                     Wrap(
                       spacing: 8,
@@ -367,14 +389,20 @@ class _FuzzerTabState extends State<FuzzerTab> {
                   children: [
                     Text(
                       'Configuration (${_devices.length} devices)',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Power Mode Selection
                     const Text(
                       'Power Command',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     SegmentedButton<String>(
@@ -391,14 +419,16 @@ class _FuzzerTabState extends State<FuzzerTab> {
                         ),
                       ],
                       selected: {_powerMode},
-                      onSelectionChanged: _isFuzzing ? null : (Set<String> newSelection) {
-                        setState(() {
-                          _powerMode = newSelection.first;
-                        });
-                      },
+                      onSelectionChanged: _isFuzzing
+                          ? null
+                          : (Set<String> newSelection) {
+                              setState(() {
+                                _powerMode = newSelection.first;
+                              });
+                            },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     Row(
                       children: [
                         Expanded(
@@ -443,16 +473,23 @@ class _FuzzerTabState extends State<FuzzerTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Fuzzing Control',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      'Detection Control',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     if (_isFuzzing) ...[
                       LinearProgressIndicator(
-                        value: _devices.isNotEmpty ? _currentIndex / _devices.length : 0,
+                        value: _devices.isNotEmpty
+                            ? _currentIndex / _devices.length
+                            : 0,
                       ),
                       const SizedBox(height: 8),
-                      Text('Testing device ${_currentIndex + 1} of ${_devices.length}'),
+                      Text(
+                        'Testing device ${_currentIndex + 1} of ${_devices.length}',
+                      ),
                       if (_lastTestedDevice != null) ...[
                         const SizedBox(height: 8),
                         Text('Current: ${_lastTestedDevice!.name}'),
@@ -463,15 +500,19 @@ class _FuzzerTabState extends State<FuzzerTab> {
                           ElevatedButton.icon(
                             onPressed: _markAsWorking,
                             icon: const Icon(Icons.check),
-                            label: const Text('Mark as Working'),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                            label: const Text('This One Works'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
                             onPressed: _stopFuzzing,
                             icon: const Icon(Icons.stop),
                             label: const Text('Stop'),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
                           ),
                         ],
                       ),
@@ -479,7 +520,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
                       ElevatedButton.icon(
                         onPressed: _devices.isNotEmpty ? _startFuzzing : null,
                         icon: const Icon(Icons.play_arrow),
-                        label: const Text('Start Fuzzing'),
+                        label: const Text('Start Auto Detect'),
                       ),
                     ],
                   ],
@@ -498,15 +539,23 @@ class _FuzzerTabState extends State<FuzzerTab> {
                     children: [
                       Text(
                         'Working Devices (${_workingDevices.length})',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 8),
-                      ..._workingDevices.map((device) => ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.check_circle, color: Colors.green),
-                        title: Text(device.name),
-                        subtitle: Text(device.category),
-                      )),
+                      ..._workingDevices.map(
+                        (device) => ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                          title: Text(device.name),
+                          subtitle: Text(device.category),
+                        ),
+                      ),
                     ],
                   ),
                 ),

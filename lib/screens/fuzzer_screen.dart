@@ -11,7 +11,7 @@ class FuzzerScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'IR Fuzzer',
+          'Auto Detect',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),

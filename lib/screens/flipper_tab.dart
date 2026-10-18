@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/remote_store.dart';
+import '../utils/device_images.dart';
 import '../utils/flipper_irdb.dart';
 import '../utils/voltas_prefs.dart';
 import 'full_screen_ir_remote.dart';
@@ -386,8 +387,9 @@ class _FlipperTabState extends State<FlipperTab> {
       itemBuilder: (context, index) {
         final category = _categories[index];
         return Card(
+          clipBehavior: Clip.antiAlias,
           child: ListTile(
-            leading: _getCategoryIcon(category),
+            leading: _deviceThumb(category),
             title: Text(category),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _selectCategory(category),
@@ -404,8 +406,9 @@ class _FlipperTabState extends State<FlipperTab> {
       itemBuilder: (context, index) {
         final brand = _brands[index];
         return Card(
+          clipBehavior: Clip.antiAlias,
           child: ListTile(
-            leading: const Icon(Icons.business),
+            leading: _deviceThumb(_selectedCategory ?? ''),
             title: Text(brand),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _selectBrand(brand),
@@ -422,8 +425,9 @@ class _FlipperTabState extends State<FlipperTab> {
       itemBuilder: (context, index) {
         final device = _devices[index];
         return Card(
+          clipBehavior: Clip.antiAlias,
           child: ListTile(
-            leading: const Icon(Icons.settings_remote),
+            leading: _deviceThumb(_selectedCategory ?? device),
             title: Text(device),
             subtitle: Text('$_selectedBrand'),
             trailing: Row(
@@ -441,6 +445,30 @@ class _FlipperTabState extends State<FlipperTab> {
           ),
         );
       },
+    );
+  }
+
+  Widget _deviceThumb(String category) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.asset(
+        DeviceImages.forCategory(category),
+        width: 56,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 56,
+            height: 44,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Icon(
+              _getCategoryIcon(category),
+              size: 22,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          );
+        },
+      ),
     );
   }
 
