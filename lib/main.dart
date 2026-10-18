@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/main_screen.dart';
+
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,67 +11,82 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFFFF8C00);
+    const background = Color(0xFF0B0B0D);
+    const surface = Color(0xFF17171A);
+
     return MaterialApp(
-      title: 'Remote',
+      title: 'IReDroid',
       theme: ThemeData(
-        // Flipper Zero inspired theme - Orange and dark colors
+        useMaterial3: true,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFFF8C00), // Flipper Zero orange
-          secondary: Color(0xFFFF8C00),
-          surface: Color(0xFF1E1E1E), // Dark surface
+          primary: accent,
+          secondary: accent,
+          surface: surface,
           onPrimary: Colors.black,
           onSecondary: Colors.black,
           onSurface: Colors.white,
         ),
-        scaffoldBackgroundColor: const Color(0xFF121212), // Very dark background
-        useMaterial3: true,
-        // App bar theme
+        scaffoldBackgroundColor: background,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E1E1E),
-          foregroundColor: Color(0xFFFF8C00),
+          backgroundColor: background,
+          foregroundColor: Colors.white,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: false,
         ),
-        // Tab bar theme  
-        tabBarTheme: const TabBarThemeData(
-          labelColor: Color(0xFFFF8C00),
-          unselectedLabelColor: Colors.grey,
-          indicator: UnderlineTabIndicator(
-            borderSide: BorderSide(color: Color(0xFFFF8C00), width: 2),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF1C1C20),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white10),
           ),
         ),
-        // Card theme
-        cardTheme: const CardThemeData(
-          color: Color(0xFF2D2D2D),
-          elevation: 2,
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Color(0xFF151517),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
         ),
-        // Elevated button theme
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF26262B),
+          contentTextStyle: const TextStyle(color: Colors.white),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: Colors.black,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFF8C00),
+            backgroundColor: accent,
             foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
-        // Disable animations for faster performance
+        dividerTheme: const DividerThemeData(color: Colors.white10),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-            // NOTE: CupertinoPageTransitionsBuilder is not const on newer Flutter.
           },
         ),
       ),
-      // Disable debug banner
       debugShowCheckedModeBanner: false,
-      // Disable animations globally
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            // Disable animations
-            disableAnimations: true,
-          ),
-          child: child!,
-        );
-      },
-      home: const MainScreen(),
+      home: const HomeScreen(),
     );
   }
 }

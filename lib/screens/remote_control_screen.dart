@@ -5,14 +5,21 @@ import '../utils/ir_transmitter.dart';
 
 class RemoteControlScreen extends StatefulWidget {
   final IRDevice device;
+  final Future<bool> Function()? onAddToHome;
 
-  const RemoteControlScreen({super.key, required this.device});
+  const RemoteControlScreen({
+    super.key,
+    required this.device,
+    this.onAddToHome,
+  });
 
   @override
   State<RemoteControlScreen> createState() => _RemoteControlScreenState();
 }
 
 class _RemoteControlScreenState extends State<RemoteControlScreen> {
+  bool _added = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,6 +27,14 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
         title: Text('${widget.device.name} Remote'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          if (widget.onAddToHome != null)
+            IconButton(
+              tooltip: _added ? 'Added to My Remotes' : 'Add to My Remotes',
+              icon: Icon(
+                _added ? Icons.check_circle : Icons.add_circle_outline,
+              ),
+              onPressed: _added ? null : _addToHome,
+            ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: _showDeviceInfo,
@@ -279,6 +294,23 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
       await IRTransmitter.transmitButton(button);
     } catch (e) {
       // Silent - no messages at all
+    }
+  }
+
+  Future<void> _addToHome() async {
+    final add = widget.onAddToHome;
+    if (add == null) return;
+    final ok = await add();
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _added = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to My Remotes')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not add this remote')),
+      );
     }
   }
 

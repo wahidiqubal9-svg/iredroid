@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/remote_store.dart';
 import '../utils/flipper_irdb.dart';
+import '../utils/voltas_prefs.dart';
 import 'remote_control_screen.dart';
-import 'custom_tab.dart';
 import 'voltas_remote_screen.dart';
 import 'atomberg_remote_screen.dart';
 
@@ -18,7 +19,7 @@ class _FlipperTabState extends State<FlipperTab> {
   static bool _irdbAvailable = false;
   static List<String> _categories = [];
   static Map<String, dynamic> _directoryInfo = {};
-  
+
   bool _isLoading = true;
   String? _selectedCategory;
   List<String> _brands = [];
@@ -41,23 +42,23 @@ class _FlipperTabState extends State<FlipperTab> {
 
   Future<void> _checkIRDBAvailability() async {
     setState(() => _isLoading = true);
-    
+
     final available = await FlipperIRDB.isIRDBAvailable();
     final info = await FlipperIRDB.getDirectoryInfo();
-    
+
     print('IRDB Available: $available');
     print('Directory Info: $info');
-    
+
     if (available) {
       final categories = await FlipperIRDB.getCategories();
       print('Categories found: $categories');
-      
+
       // Cache the data in static variables
       _hasLoaded = true;
       _irdbAvailable = true;
       _categories = categories;
       _directoryInfo = info;
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -65,7 +66,7 @@ class _FlipperTabState extends State<FlipperTab> {
       _hasLoaded = true;
       _irdbAvailable = false;
       _directoryInfo = info;
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -88,7 +89,7 @@ class _FlipperTabState extends State<FlipperTab> {
 
   Future<void> _selectBrand(String brand) async {
     if (_selectedCategory == null) return;
-    
+
     setState(() {
       _selectedBrand = brand;
       _devices = [];
@@ -153,7 +154,22 @@ class _FlipperTabState extends State<FlipperTab> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RemoteControlScreen(device: device),
+            builder: (context) => RemoteControlScreen(
+              device: device,
+              onAddToHome: () async {
+                try {
+                  await RemoteStore.saveDevice(
+                    device,
+                    source:
+                        'Flipper IRDB: '
+                        '$_selectedCategory/$_selectedBrand',
+                  );
+                  return true;
+                } catch (_) {
+                  return false;
+                }
+              },
+            ),
           ),
         );
       } else {
@@ -166,26 +182,61 @@ class _FlipperTabState extends State<FlipperTab> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
-  void _addToFavorites(String deviceName) async {
+  Future<void> _addDevice(String deviceName) async {
     try {
-      await CustomTab.addFavorite(_selectedBrand!, deviceName);
+      if (_selectedBrand == 'Voltas') {
+        final match = RegExp(r'Remote(\d+)').firstMatch(deviceName);
+        final variety = match != null ? int.tryParse(match.group(1)!) : null;
+        if (variety != null) {
+          await VoltasPrefs.setVariety(variety);
+        }
+        await RemoteStore.addBuiltin(RemoteStore.builtinVoltas);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Voltas AC added to My Remotes')),
+          );
+        }
+        return;
+      }
+      if (_selectedBrand == 'Atomberg') {
+        await RemoteStore.addBuiltin(RemoteStore.builtinAtomberg);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Atomberg Fan added to My Remotes')),
+          );
+        }
+        return;
+      }
+
+      final device = await FlipperIRDB.parseDeviceFile(
+        _selectedCategory!,
+        _selectedBrand!,
+        deviceName,
+      );
+      if (device == null || device.buttons.isEmpty) {
+        throw Exception('Could not read this device');
+      }
+      await RemoteStore.saveDevice(
+        device,
+        source: 'Flipper IRDB: $_selectedCategory/$_selectedBrand',
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$deviceName added to favorites')),
+          SnackBar(content: Text('${device.name} added to My Remotes')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add favorite: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to add device: $e')));
       }
     }
   }
@@ -210,9 +261,9 @@ class _FlipperTabState extends State<FlipperTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Flipper IRDB',
+                'Browse devices',
                 style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
@@ -220,12 +271,14 @@ class _FlipperTabState extends State<FlipperTab> {
               const SizedBox(height: 4),
               Text(
                 '${_directoryInfo['totalCategories']} categories • ${_directoryInfo['totalDevices']} devices',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
-        
+
         // Navigation breadcrumb
         if (_selectedCategory != null || _selectedBrand != null)
           Container(
@@ -239,7 +292,12 @@ class _FlipperTabState extends State<FlipperTab> {
                     _brands = [];
                     _devices = [];
                   }),
-                  child: Text('Categories', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                  child: Text(
+                    'Categories',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ),
                 if (_selectedCategory != null) ...[
                   const Text(' > '),
@@ -248,12 +306,20 @@ class _FlipperTabState extends State<FlipperTab> {
                       _selectedBrand = null;
                       _devices = [];
                     }),
-                    child: Text(_selectedCategory!, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                    child: Text(
+                      _selectedCategory!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
                   ),
                 ],
                 if (_selectedBrand != null) ...[
                   const Text(' > '),
-                  Text(_selectedBrand!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    _selectedBrand!,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ],
             ),
@@ -264,8 +330,8 @@ class _FlipperTabState extends State<FlipperTab> {
           child: _selectedCategory == null
               ? _buildCategoriesList()
               : _selectedBrand == null
-                  ? _buildBrandsList()
-                  : _buildDevicesList(),
+              ? _buildBrandsList()
+              : _buildDevicesList(),
         ),
       ],
     );
@@ -294,7 +360,10 @@ class _FlipperTabState extends State<FlipperTab> {
             style: TextStyle(fontSize: 16),
           ),
           const SizedBox(height: 24),
-          const Text('Asset location:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Asset location:',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
           const Text(
             'assets/flipper-irdb/',
@@ -361,9 +430,9 @@ class _FlipperTabState extends State<FlipperTab> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () => _addToFavorites(device),
-                  tooltip: 'Add to Favorites',
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () => _addDevice(device),
+                  tooltip: 'Add to My Remotes',
                 ),
                 const Icon(Icons.play_arrow),
               ],
@@ -383,19 +452,31 @@ class _FlipperTabState extends State<FlipperTab> {
       case 'acs':
       case 'ac':
       case 'air_conditioners':
-        return Icon(Icons.ac_unit, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.ac_unit,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'audio':
       case 'speakers':
       case 'audio_and_video_receivers':
-        return Icon(Icons.speaker, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.speaker,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'fans':
         return Icon(Icons.toys, color: Theme.of(context).colorScheme.primary);
       case 'lights':
       case 'lighting':
       case 'led_lighting':
-        return Icon(Icons.lightbulb, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.lightbulb,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'projectors':
-        return Icon(Icons.videocam, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.videocam,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'air_purifiers':
         return Icon(Icons.air, color: Theme.of(context).colorScheme.primary);
       case 'bidet':
@@ -403,63 +484,117 @@ class _FlipperTabState extends State<FlipperTab> {
       case 'blu-ray':
       case 'dvd_players':
       case 'vcr':
-        return Icon(Icons.disc_full, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.disc_full,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'cable_boxes':
       case 'set_top_boxes':
       case 'streaming_devices':
         return Icon(Icons.cable, color: Theme.of(context).colorScheme.primary);
       case 'cameras':
       case 'cctv':
-        return Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.camera_alt,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'car_multimedia':
       case 'head_units':
-        return Icon(Icons.car_rental, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.car_rental,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'cd_players':
       case 'minidisc':
       case 'laserdisc':
         return Icon(Icons.album, color: Theme.of(context).colorScheme.primary);
       case 'clocks':
-        return Icon(Icons.access_time, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.access_time,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'computers':
       case 'monitors':
-        return Icon(Icons.computer, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.computer,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'consoles':
       case 'toys':
         return Icon(Icons.games, color: Theme.of(context).colorScheme.primary);
       case 'converters':
       case 'digital_signs':
-        return Icon(Icons.transform, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.transform,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'dust_collectors':
       case 'vacuum_cleaners':
-        return Icon(Icons.cleaning_services, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.cleaning_services,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'dvb-t':
       case 'tv_tuner':
-        return Icon(Icons.settings_input_antenna, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.settings_input_antenna,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'fireplaces':
       case 'heaters':
-        return Icon(Icons.fireplace, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.fireplace,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'humidifiers':
-        return Icon(Icons.water_drop, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.water_drop,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'kvm':
-        return Icon(Icons.keyboard, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.keyboard,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'miscellaneous':
-        return Icon(Icons.more_horiz, color: Theme.of(context).colorScheme.onSurfaceVariant);
+        return Icon(
+          Icons.more_horiz,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        );
       case 'multimedia':
       case 'soundbars':
-        return Icon(Icons.surround_sound, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.surround_sound,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'picture_frames':
       case 'touchscreen_displays':
         return Icon(Icons.photo, color: Theme.of(context).colorScheme.primary);
       case 'universal_tv_remotes':
-        return Icon(Icons.settings_remote, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.settings_remote,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'videoconferencing':
-        return Icon(Icons.video_call, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.video_call,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'whiteboards':
-        return Icon(Icons.dashboard, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.dashboard,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case 'window_cleaners':
-        return Icon(Icons.cleaning_services, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.cleaning_services,
+          color: Theme.of(context).colorScheme.primary,
+        );
       default:
-        return Icon(Icons.devices, color: Theme.of(context).colorScheme.onSurfaceVariant);
+        return Icon(
+          Icons.devices,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        );
     }
   }
 }

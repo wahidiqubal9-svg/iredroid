@@ -7,6 +7,7 @@ class AppSettings {
   
   // Default values
   static const bool defaultTransmitterAvailable = true;
+  static const String _builtinRemotesKey = 'builtin_remotes';
   
   // Get settings file
   static Future<File> _getSettingsFile() async {
@@ -50,6 +51,38 @@ class AppSettings {
   static Future<void> setTransmitterAvailable(bool available) async {
     final settings = await _loadSettings();
     settings['transmitter_available'] = available;
+    await _saveSettings(settings);
+  }
+
+  // Built-in remotes the user has added to their home screen.
+  static Future<List<String>> getBuiltinRemotes() async {
+    final settings = await _loadSettings();
+    final value = settings[_builtinRemotesKey];
+    if (value is List) {
+      return value.whereType<String>().toList();
+    }
+    return <String>[];
+  }
+
+  static Future<bool> addBuiltinRemote(String id) async {
+    final settings = await _loadSettings();
+    final value = settings[_builtinRemotesKey];
+    final ids = value is List
+        ? value.whereType<String>().toList()
+        : <String>[];
+    if (ids.contains(id)) return false;
+    ids.add(id);
+    settings[_builtinRemotesKey] = ids;
+    await _saveSettings(settings);
+    return true;
+  }
+
+  static Future<void> removeBuiltinRemote(String id) async {
+    final settings = await _loadSettings();
+    final value = settings[_builtinRemotesKey];
+    if (value is! List) return;
+    final ids = value.whereType<String>().toList()..remove(id);
+    settings[_builtinRemotesKey] = ids;
     await _saveSettings(settings);
   }
 }

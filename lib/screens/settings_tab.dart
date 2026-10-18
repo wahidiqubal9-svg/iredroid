@@ -45,12 +45,6 @@ class _SettingsTabState extends State<SettingsTab> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const Text(
-          'Settings',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        
         // IR Hardware Status
         Card(
           child: Column(

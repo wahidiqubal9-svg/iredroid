@@ -34,9 +34,10 @@ class IRFileParser {
     final lines = content.split('\n');
     List<IRButton> buttons = [];
     
-    // Try to extract device name and brand from comments
+    // Try to extract device name, brand and category from comments
     String deviceName = fileName;
     String deviceBrand = 'Unknown';
+    String? deviceCategory;
     
     for (String line in lines) {
       line = line.trim();
@@ -44,6 +45,8 @@ class IRFileParser {
         deviceName = line.substring(9).trim();
       } else if (line.startsWith('# Brand:')) {
         deviceBrand = line.substring(8).trim();
+      } else if (line.startsWith('# Category:')) {
+        deviceCategory = line.substring(11).trim();
       }
     }
     
@@ -131,7 +134,9 @@ class IRFileParser {
     return IRDevice(
       name: deviceName,
       brand: deviceBrand,
-      category: _determineCategory(deviceName, buttons),
+      category: deviceCategory?.isNotEmpty == true
+          ? deviceCategory!
+          : _determineCategory(deviceName, buttons),
       buttons: buttons,
     );
   }

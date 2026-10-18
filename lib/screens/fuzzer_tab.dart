@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/flipper_irdb.dart';
 import '../models/ir_device.dart';
 import '../utils/ir_transmitter.dart';
-import 'custom_tab.dart';
+import '../services/remote_store.dart';
 
 class FuzzerTab extends StatefulWidget {
   const FuzzerTab({super.key});
@@ -266,7 +266,7 @@ class _FuzzerTabState extends State<FuzzerTab> {
             const SizedBox(height: 8),
             ..._workingDevices.map((device) => Text('• ${device.name}')),
             const SizedBox(height: 16),
-            const Text('Would you like to save these to your custom remotes?'),
+            const Text('Would you like to save these to My Remotes?'),
           ],
         ),
         actions: [
@@ -289,9 +289,9 @@ class _FuzzerTabState extends State<FuzzerTab> {
   Future<void> _saveWorkingDevices() async {
     try {
       for (final device in _workingDevices) {
-        await CustomTab.saveFromFuzzer(device);
+        await RemoteStore.saveFromFuzzer(device);
       }
-      _showSnackBar('${_workingDevices.length} device(s) saved to custom remotes!', Colors.green);
+      _showSnackBar('${_workingDevices.length} device(s) saved to My Remotes!', Colors.green);
     } catch (e) {
       _showSnackBar('Failed to save devices: $e', Colors.red);
     }
@@ -315,15 +315,10 @@ class _FuzzerTabState extends State<FuzzerTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'IR Fuzzer',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
             'Test power-off signals from multiple devices to find compatible remotes',
             style: TextStyle(color: Colors.grey),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // Category Selection
           Card(
