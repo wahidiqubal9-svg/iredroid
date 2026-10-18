@@ -4,6 +4,7 @@ import '../models/voltas.dart';
 import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
 import '../utils/voltas_prefs.dart';
+import '../widgets/immersive_mode.dart';
 import '../widgets/pinch_to_exit.dart';
 
 /// Full-screen Voltas AC remote with a digital display.
@@ -144,11 +145,13 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: PinchToExit(
-        child: SafeArea(
-          child: (_remote == null || _dataset == null)
-              ? _buildLoading()
-              : _buildContent(),
+      body: ImmersiveMode(
+        child: PinchToExit(
+          child: SafeArea(
+            child: (_remote == null || _dataset == null)
+                ? _buildLoading()
+                : _buildContent(),
+          ),
         ),
       ),
     );
@@ -159,8 +162,10 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text('Failed to load Voltas data:\n$_error',
-              textAlign: TextAlign.center),
+          child: Text(
+            'Failed to load Voltas data:\n$_error',
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -194,8 +199,10 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(left: 8),
-            child: Text('Voltas',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Voltas',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
           const SizedBox(width: 8),
           Container(
@@ -204,8 +211,10 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white24),
             ),
-            child: Text('AC · Remote ${_r.number}',
-                style: const TextStyle(fontSize: 11, color: Colors.white70)),
+            child: Text(
+              'AC · Remote ${_r.number}',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
           ),
           const Spacer(),
           IconButton(
@@ -230,7 +239,11 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         ),
         border: Border.all(color: Colors.white10),
         boxShadow: const [
-          BoxShadow(color: Colors.black54, blurRadius: 24, offset: Offset(0, 12)),
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
         ],
       ),
       child: Column(
@@ -271,9 +284,14 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
                 children: [
                   Icon(_modeIcon(_mode), size: 16, color: _lcdInk),
                   const SizedBox(width: 6),
-                  Text(_dataset!.modeLabels[_mode].toUpperCase(),
-                      style: const TextStyle(
-                          color: _lcdInk, fontSize: 13, letterSpacing: 1.5)),
+                  Text(
+                    _dataset!.modeLabels[_mode].toUpperCase(),
+                    style: const TextStyle(
+                      color: _lcdInk,
+                      fontSize: 13,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
                 ],
               ),
               Row(
@@ -287,11 +305,14 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
                     ),
                   ),
                   const SizedBox(width: 5),
-                  Text(_acOn ? 'ON' : 'OFF',
-                      style: TextStyle(
-                          color: _acOn ? _lcdInk : Colors.redAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    _acOn ? 'ON' : 'OFF',
+                    style: TextStyle(
+                      color: _acOn ? _lcdInk : Colors.redAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -314,9 +335,14 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              const Text('°C',
-                  style: TextStyle(
-                      fontFamily: 'monospace', fontSize: 22, color: _lcdInk)),
+              const Text(
+                '°C',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 22,
+                  color: _lcdInk,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -330,15 +356,21 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
                   Text(
                     _modeHasFan ? fans[_fan].toUpperCase() : '—',
                     style: const TextStyle(
-                        color: _lcdInk, fontSize: 12, letterSpacing: 1),
+                      color: _lcdInk,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ],
               ),
-              Text('VOLTAS',
-                  style: TextStyle(
-                      color: _lcdInk.withValues(alpha: 0.5),
-                      fontSize: 11,
-                      letterSpacing: 2)),
+              Text(
+                'VOLTAS',
+                style: TextStyle(
+                  color: _lcdInk.withValues(alpha: 0.5),
+                  fontSize: 11,
+                  letterSpacing: 2,
+                ),
+              ),
             ],
           ),
         ],
@@ -401,20 +433,23 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         children: [
           _round(
             icon: Icons.remove,
-            onTap:
-                enabled && _temp > _r.tempMin ? () => _setTemp(_temp - 1) : null,
+            onTap: enabled && _temp > _r.tempMin
+                ? () => _setTemp(_temp - 1)
+                : null,
           ),
           Container(
             width: 96,
             alignment: Alignment.center,
-            child: Text('$_temp°C',
-                style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold)),
+            child: Text(
+              '$_temp°C',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
           ),
           _round(
             icon: Icons.add,
-            onTap:
-                enabled && _temp < _r.tempMax ? () => _setTemp(_temp + 1) : null,
+            onTap: enabled && _temp < _r.tempMax
+                ? () => _setTemp(_temp + 1)
+                : null,
           ),
         ],
       ),
@@ -430,12 +465,19 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
           backgroundColor: _acOn ? Colors.red : Colors.green,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
         icon: const Icon(Icons.power_settings_new),
-        label: Text(_acOn ? 'TURN OFF' : 'TURN ON',
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        label: Text(
+          _acOn ? 'TURN OFF' : 'TURN ON',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
       ),
     );
   }
@@ -448,8 +490,10 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         children: [
           Icon(Icons.pinch, size: 14, color: Colors.white38),
           SizedBox(width: 6),
-          Text('Pinch with two fingers to close',
-              style: TextStyle(fontSize: 11, color: Colors.white38)),
+          Text(
+            'Pinch with two fingers to close',
+            style: TextStyle(fontSize: 11, color: Colors.white38),
+          ),
         ],
       ),
     );
@@ -461,9 +505,14 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: Colors.white54, letterSpacing: 1.5)),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.white54,
+              letterSpacing: 1.5,
+            ),
+          ),
         ),
         child,
       ],
@@ -485,20 +534,24 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: selected ? _accent : Colors.white12,
-              width: selected ? 1.5 : 1),
+            color: selected ? _accent : Colors.white12,
+            width: selected ? 1.5 : 1,
+          ),
           color: selected ? _accent.withValues(alpha: 0.12) : Colors.black26,
         ),
         child: Column(
           children: [
             Icon(icon, size: 20, color: enabled ? null : Colors.white24),
             const SizedBox(height: 3),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: enabled ? Colors.white70 : Colors.white24),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: enabled ? Colors.white70 : Colors.white24,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

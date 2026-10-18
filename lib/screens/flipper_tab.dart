@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/remote_store.dart';
 import '../utils/flipper_irdb.dart';
 import '../utils/voltas_prefs.dart';
-import 'remote_control_screen.dart';
+import 'full_screen_ir_remote.dart';
 import 'voltas_remote_screen.dart';
 import 'atomberg_remote_screen.dart';
 
@@ -154,7 +154,7 @@ class _FlipperTabState extends State<FlipperTab> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RemoteControlScreen(
+            builder: (context) => FullScreenIRRemote(
               device: device,
               onAddToHome: () async {
                 try {

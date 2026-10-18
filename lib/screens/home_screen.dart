@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 
 import '../models/ir_device.dart';
 import '../services/remote_store.dart';
+import '../services/update_manager.dart';
 import '../utils/haptics.dart';
 import '../utils/ir_file_parser.dart';
 import '../utils/voltas_prefs.dart';
 import '../widgets/add_remote_sheet.dart';
 import '../widgets/mini_remote.dart';
+import '../widgets/update_prompt.dart';
 import 'atomberg_remote_screen.dart';
 import 'flipper_browser_screen.dart';
 import 'fuzzer_screen.dart';
@@ -33,6 +35,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoCheckForUpdates());
+  }
+
+  Future<void> _autoCheckForUpdates() async {
+    try {
+      if (!await UpdateManager.shouldAutoCheck()) return;
+      await UpdateManager.markChecked();
+      final update = await UpdateManager.check();
+      if (!mounted || update == null) return;
+      await showUpdatePrompt(context, update);
+    } catch (_) {
+      // Silent: updates should never block using the app.
+    }
   }
 
   Future<void> _load({bool showSpinner = true}) async {

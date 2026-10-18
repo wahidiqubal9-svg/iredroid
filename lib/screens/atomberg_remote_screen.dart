@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/ir_device.dart';
 import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
+import '../widgets/immersive_mode.dart';
 import '../widgets/pinch_to_exit.dart';
 
 /// A single Atomberg fan button: label + NECext command byte.
@@ -42,13 +43,15 @@ class AtombergRemoteScreen extends StatelessWidget {
   Future<void> _send(_FanButton button) async {
     Haptics.tap();
     try {
-      await IRTransmitter.transmitButton(IRButton(
-        name: button.label,
-        type: 'parsed',
-        protocol: 'NECext',
-        address: _address,
-        command: button.command,
-      ));
+      await IRTransmitter.transmitButton(
+        IRButton(
+          name: button.label,
+          type: 'parsed',
+          protocol: 'NECext',
+          address: _address,
+          command: button.command,
+        ),
+      );
     } catch (_) {
       // ignore transmit errors
     }
@@ -58,25 +61,29 @@ class AtombergRemoteScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
-      body: PinchToExit(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(context),
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 340),
-                      child: _buildRemote(),
+      body: ImmersiveMode(
+        child: PinchToExit(
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(context),
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 340),
+                        child: _buildRemote(),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              _buildHint(),
-            ],
+                _buildHint(),
+              ],
+            ),
           ),
         ),
       ),
@@ -90,8 +97,10 @@ class AtombergRemoteScreen extends StatelessWidget {
         children: [
           const Icon(Icons.toys, size: 18, color: Colors.white70),
           const SizedBox(width: 10),
-          const Text('Atomberg Fan',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Atomberg Fan',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const Spacer(),
           IconButton(
             tooltip: 'Close',
@@ -110,17 +119,24 @@ class AtombergRemoteScreen extends StatelessWidget {
         color: const Color(0xFFF4F4F4),
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
-          BoxShadow(color: Colors.black54, blurRadius: 24, offset: Offset(0, 12)),
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
         ],
       ),
       child: Column(
         children: [
-          const Text('Atomberg',
-              style: TextStyle(
-                  color: Color(0xFF6B6B6B),
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 3)),
+          const Text(
+            'Atomberg',
+            style: TextStyle(
+              color: Color(0xFF6B6B6B),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 3,
+            ),
+          ),
           const SizedBox(height: 18),
           _buildPower(),
           const SizedBox(height: 24),
@@ -156,10 +172,17 @@ class AtombergRemoteScreen extends StatelessWidget {
           color: Color(0xFFE53935),
           boxShadow: [
             BoxShadow(
-                color: Color(0x55E53935), blurRadius: 12, offset: Offset(0, 4)),
+              color: Color(0x55E53935),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
           ],
         ),
-        child: const Icon(Icons.power_settings_new, color: Colors.white, size: 32),
+        child: const Icon(
+          Icons.power_settings_new,
+          color: Colors.white,
+          size: 32,
+        ),
       ),
     );
   }
@@ -176,11 +199,14 @@ class AtombergRemoteScreen extends StatelessWidget {
           color: Colors.white,
           border: Border.all(color: const Color(0xFFD0D0D0), width: 1.5),
         ),
-        child: Text(button.label,
-            style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF333333))),
+        child: Text(
+          button.label,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
+          ),
+        ),
       ),
     );
   }
@@ -195,12 +221,15 @@ class AtombergRemoteScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFD6D6D6)),
         ),
-        child: Text(button.label,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-                color: Color(0xFF444444))),
+        child: Text(
+          button.label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+            color: Color(0xFF444444),
+          ),
+        ),
       ),
     );
   }
@@ -208,12 +237,15 @@ class AtombergRemoteScreen extends StatelessWidget {
   Widget _label(String text) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Text(text,
-          style: const TextStyle(
-              fontSize: 10,
-              letterSpacing: 2,
-              color: Color(0xFF9A9A9A),
-              fontWeight: FontWeight.bold)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10,
+          letterSpacing: 2,
+          color: Color(0xFF9A9A9A),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -225,8 +257,10 @@ class AtombergRemoteScreen extends StatelessWidget {
         children: [
           Icon(Icons.pinch, size: 14, color: Colors.white38),
           SizedBox(width: 6),
-          Text('Pinch with two fingers to close',
-              style: TextStyle(fontSize: 11, color: Colors.white38)),
+          Text(
+            'Pinch with two fingers to close',
+            style: TextStyle(fontSize: 11, color: Colors.white38),
+          ),
         ],
       ),
     );

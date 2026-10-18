@@ -3,26 +3,37 @@ import 'package:flutter/material.dart';
 import '../models/ir_device.dart';
 import '../utils/haptics.dart';
 import '../utils/ir_transmitter.dart';
+import '../widgets/immersive_mode.dart';
 import '../widgets/pinch_to_exit.dart';
 
 /// A saved remote shown full-screen. Pinch in with two fingers to close.
-class FullScreenIRRemote extends StatelessWidget {
+class FullScreenIRRemote extends StatefulWidget {
   final IRDevice device;
+  final Future<bool> Function()? onAddToHome;
 
-  const FullScreenIRRemote({super.key, required this.device});
+  const FullScreenIRRemote({super.key, required this.device, this.onAddToHome});
+
+  @override
+  State<FullScreenIRRemote> createState() => _FullScreenIRRemoteState();
+}
+
+class _FullScreenIRRemoteState extends State<FullScreenIRRemote> {
+  bool _added = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
-      body: PinchToExit(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(context),
-              Expanded(child: _buildGrid(context)),
-              _buildHint(),
-            ],
+      body: ImmersiveMode(
+        child: PinchToExit(
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(context),
+                Expanded(child: _buildGrid(context)),
+                _buildHint(),
+              ],
+            ),
           ),
         ),
       ),
@@ -34,22 +45,41 @@ class FullScreenIRRemote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
       child: Row(
         children: [
-          Icon(_iconFor(device.category), size: 18, color: Colors.white70),
+          Icon(
+            _iconFor(widget.device.category),
+            size: 18,
+            color: Colors.white70,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(device.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('${device.category} · ${device.buttons.length} buttons',
-                    style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                Text(
+                  widget.device.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '${widget.device.category} · '
+                  '${widget.device.buttons.length} buttons',
+                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                ),
               ],
             ),
           ),
+          if (widget.onAddToHome != null)
+            IconButton(
+              tooltip: _added ? 'Added to My Remotes' : 'Add to My Remotes',
+              icon: Icon(
+                _added ? Icons.check_circle : Icons.add_circle_outline,
+              ),
+              onPressed: _added ? null : _addToHome,
+            ),
           IconButton(
             tooltip: 'Close',
             icon: const Icon(Icons.keyboard_arrow_down),
@@ -69,9 +99,9 @@ class FullScreenIRRemote extends StatelessWidget {
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
-      itemCount: device.buttons.length,
+      itemCount: widget.device.buttons.length,
       itemBuilder: (context, index) {
-        final button = device.buttons[index];
+        final button = widget.device.buttons[index];
         return ElevatedButton(
           onPressed: () async {
             Haptics.tap();
@@ -109,27 +139,42 @@ class FullScreenIRRemote extends StatelessWidget {
         children: [
           Icon(Icons.pinch, size: 14, color: Colors.white38),
           SizedBox(width: 6),
-          Text('Pinch with two fingers to close',
-              style: TextStyle(fontSize: 11, color: Colors.white38)),
+          Text(
+            'Pinch with two fingers to close',
+            style: TextStyle(fontSize: 11, color: Colors.white38),
+          ),
         ],
       ),
     );
   }
 
-  IconData _iconFor(String category) {
-    switch (category.toLowerCase()) {
-      case 'tv':
-        return Icons.tv;
-      case 'ac':
-        return Icons.ac_unit;
-      case 'audio':
-        return Icons.speaker;
-      case 'fan':
-        return Icons.toys;
-      case 'light':
-        return Icons.lightbulb;
-      default:
-        return Icons.settings_remote;
+  Future<void> _addToHome() async {
+    final add = widget.onAddToHome;
+    if (add == null) return;
+    final ok = await add();
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _added = true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Added to My Remotes')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not add this remote')),
+      );
     }
+  }
+
+  IconData _iconFor(String category) {
+    final value = category.toLowerCase();
+    if (value.contains('tv')) return Icons.tv;
+    if (value.contains('ac') || value.contains('air')) return Icons.ac_unit;
+    if (value.contains('audio') || value.contains('speaker')) {
+      return Icons.speaker;
+    }
+    if (value.contains('fan')) return Icons.toys;
+    if (value.contains('light')) return Icons.lightbulb;
+    if (value.contains('projector')) return Icons.videocam;
+    return Icons.settings_remote;
   }
 }
