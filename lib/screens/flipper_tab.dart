@@ -461,11 +461,7 @@ class _FlipperTabState extends State<FlipperTab> {
             width: 56,
             height: 44,
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Icon(
-              _getCategoryIcon(category),
-              size: 22,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            child: _getCategoryIcon(category),
           );
         },
       ),
