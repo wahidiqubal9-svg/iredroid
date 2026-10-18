@@ -212,12 +212,19 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
           Positioned.fill(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const padding = 12.0;
+                const horizontal = 12.0;
+                const top = 52.0;
+                const bottom = 12.0;
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(padding),
+                  padding: const EdgeInsets.fromLTRB(
+                    horizontal,
+                    top,
+                    horizontal,
+                    bottom,
+                  ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - padding * 2,
+                      minHeight: constraints.maxHeight - top - bottom,
                     ),
                     child: _buildRemoteBody(),
                   ),
