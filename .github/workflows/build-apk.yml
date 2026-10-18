@@ -77,10 +77,15 @@ jobs:
 
       - name: Build release APKs
         run: |
+          # Split APKs get ABI version-code offsets (arm64 = +2000, etc.).
+          # Give the universal APK a higher base so it can update an install
+          # made from any of the split APKs without being rejected as a downgrade.
+          UNIVERSAL_VERSION_CODE=$((10000 + GITHUB_RUN_NUMBER))
+          echo "UNIVERSAL_VERSION_CODE=$UNIVERSAL_VERSION_CODE" >> "$GITHUB_ENV"
           flutter build apk --release --split-per-abi \
             --build-name="$VERSION_NAME" --build-number=${GITHUB_RUN_NUMBER}
           flutter build apk --release \
-            --build-name="$VERSION_NAME" --build-number=${GITHUB_RUN_NUMBER}
+            --build-name="$VERSION_NAME" --build-number="$UNIVERSAL_VERSION_CODE"
 
       # Publishes the universal APK to the apk branch, which gives a stable
       # direct download URL and the version.json consumed by the in-app updater.
@@ -97,7 +102,7 @@ jobs:
           cp "$APK" iredroid.apk
           SHA="$(sha256sum iredroid.apk | cut -d' ' -f1)"
           printf '{"versionCode":%s,"versionName":"%s","apkUrl":"https://raw.githubusercontent.com/%s/apk/iredroid.apk","sha256":"%s","notes":"Build %s"}\n' \
-            "${GITHUB_RUN_NUMBER}" "$VERSION_NAME" "$GITHUB_REPOSITORY" "$SHA" "${GITHUB_RUN_NUMBER}" > version.json
+            "${UNIVERSAL_VERSION_CODE}" "$VERSION_NAME" "$GITHUB_REPOSITORY" "$SHA" "${GITHUB_RUN_NUMBER}" > version.json
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \

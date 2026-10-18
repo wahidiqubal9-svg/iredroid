@@ -51,9 +51,10 @@ class AppUpdate {
     );
     if (comparison != 0) return comparison > 0;
 
-    // Split-per-ABI builds carry a +1000/+2000/+3000 version-code offset.
-    // When the version names match, only trust the code for universal builds.
-    return versionCode > installed.versionCode && installed.versionCode < 1000;
+    // Version names are bumped on every build. If they match, this is the same
+    // release. Avoid comparing version codes because split APKs use ABI offsets
+    // and the universal APK intentionally uses a higher base code.
+    return false;
   }
 
   static int _asInt(Object? value) {
