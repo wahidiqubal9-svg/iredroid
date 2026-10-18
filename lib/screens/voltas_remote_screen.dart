@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/voltas.dart';
@@ -55,10 +57,23 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
       final remote = dataset.remotes.any((r) => r.number == wanted)
           ? dataset.remotes.firstWhere((r) => r.number == wanted)
           : dataset.remotes.first;
+      final saved = await VoltasPrefs.getState();
+      final mode = (saved?.mode ?? 0)
+          .clamp(0, dataset.modeLabels.length - 1)
+          .toInt();
+      final fan = (saved?.fan ?? 0)
+          .clamp(0, dataset.fanLabels.length - 1)
+          .toInt();
+      final temp = (saved?.temp ?? 22)
+          .clamp(remote.tempMin, remote.tempMax)
+          .toInt();
       setState(() {
         _dataset = dataset;
         _remote = remote;
-        _temp = 22.clamp(remote.tempMin, remote.tempMax);
+        _mode = mode;
+        _fan = fan;
+        _temp = temp;
+        _acOn = saved?.acOn ?? false;
       });
     } catch (e) {
       if (!mounted) return;
@@ -92,9 +107,11 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
     Haptics.tap();
     if (_acOn) {
       setState(() => _acOn = false);
+      unawaited(_persistState());
       await _sendSignal(_r.powerOff);
     } else {
       setState(() => _acOn = true);
+      unawaited(_persistState());
       await _sendSignal(_r.powerOn);
       await Future<void>.delayed(const Duration(milliseconds: 300));
       await _sendState();
@@ -104,19 +121,28 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   void _setMode(int mode) {
     Haptics.select();
     setState(() => _mode = mode);
+    unawaited(_persistState());
     _sendState();
   }
 
   void _setFan(int fan) {
     Haptics.select();
     setState(() => _fan = fan);
+    unawaited(_persistState());
     _sendState();
   }
 
   void _setTemp(int temp) {
     Haptics.tap();
     setState(() => _temp = temp.clamp(_r.tempMin, _r.tempMax));
+    unawaited(_persistState());
     _sendState();
+  }
+
+  Future<void> _persistState() {
+    return VoltasPrefs.setState(
+      VoltasState(mode: _mode, fan: _fan, temp: _temp, acOn: _acOn),
+    );
   }
 
   void _toast(String msg) {
@@ -173,54 +199,40 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   }
 
   Widget _buildContent() {
-    return Column(
-      children: [
-        _buildTopBar(),
-        Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: _buildRemoteBody(),
-              ),
-            ),
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF232323), Color(0xFF111111)],
         ),
-        _buildHint(),
-      ],
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-      child: Row(
+      ),
+      child: Stack(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 8),
-            child: Text(
-              'Voltas',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const padding = 12.0;
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(padding),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - padding * 2,
+                    ),
+                    child: _buildRemoteBody(),
+                  ),
+                );
+              },
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white24),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.keyboard_arrow_down),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
-            child: Text(
-              'AC · Remote ${_r.number}',
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Close',
-            icon: const Icon(Icons.keyboard_arrow_down),
-            onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],
       ),
@@ -228,37 +240,20 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
   }
 
   Widget _buildRemoteBody() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF232323), Color(0xFF111111)],
-        ),
-        border: Border.all(color: Colors.white10),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildLcd(),
-          const SizedBox(height: 18),
-          _buildModeRow(),
-          const SizedBox(height: 14),
-          _buildFanRow(),
-          const SizedBox(height: 18),
-          _buildTempRow(),
-          const SizedBox(height: 18),
-          _buildPowerButton(),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildLcd(),
+        const SizedBox(height: 10),
+        _buildModeRow(),
+        const SizedBox(height: 8),
+        _buildFanRow(),
+        const SizedBox(height: 10),
+        _buildTempRow(),
+        const SizedBox(height: 10),
+        _buildPowerButton(),
+      ],
     );
   }
 
@@ -478,23 +473,6 @@ class _VoltasRemoteScreenState extends State<VoltasRemoteScreen> {
             letterSpacing: 1,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildHint() {
-    return const Padding(
-      padding: EdgeInsets.only(top: 6, bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.pinch, size: 14, color: Colors.white38),
-          SizedBox(width: 6),
-          Text(
-            'Pinch with two fingers to close',
-            style: TextStyle(fontSize: 11, color: Colors.white38),
-          ),
-        ],
       ),
     );
   }

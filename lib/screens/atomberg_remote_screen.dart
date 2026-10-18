@@ -60,104 +60,78 @@ class AtombergRemoteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFFF4F4F4),
       body: ImmersiveMode(
-        child: PinchToExit(
-          child: SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(context),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 8,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 340),
-                        child: _buildRemote(),
-                      ),
-                    ),
-                  ),
-                ),
-                _buildHint(),
-              ],
-            ),
-          ),
-        ),
+        child: PinchToExit(child: SafeArea(child: _buildContent(context))),
       ),
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-      child: Row(
-        children: [
-          const Icon(Icons.toys, size: 18, color: Colors.white70),
-          const SizedBox(width: 10),
-          const Text(
-            'Atomberg Fan',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildContent(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 52, 22, 22),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 74,
+                  ),
+                  child: _buildRemote(),
+                ),
+              );
+            },
           ),
-          const Spacer(),
-          IconButton(
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: IconButton(
             tooltip: 'Close',
-            icon: const Icon(Icons.keyboard_arrow_down),
+            icon: const Icon(
+              Icons.keyboard_arrow_down,
+              color: Color(0xFF555555),
+            ),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildRemote() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 26),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F4F4),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 24,
-            offset: Offset(0, 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        const Text(
+          'Atomberg',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF6B6B6B),
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 4,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Atomberg',
-            style: TextStyle(
-              color: Color(0xFF6B6B6B),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 3,
-            ),
-          ),
-          const SizedBox(height: 18),
-          _buildPower(),
-          const SizedBox(height: 24),
-          _label('SPEED'),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: _speed.map(_speedButton).toList(),
-          ),
-          const SizedBox(height: 24),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            childAspectRatio: 2.4,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: _modes.map(_modeButton).toList(),
-          ),
-        ],
-      ),
+        ),
+        Center(child: _buildPower()),
+        _label('SPEED'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: _speed.map(_speedButton).toList(),
+        ),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          childAspectRatio: 2.4,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          children: _modes.map(_modeButton).toList(),
+        ),
+      ],
     );
   }
 
@@ -245,23 +219,6 @@ class AtombergRemoteScreen extends StatelessWidget {
           color: Color(0xFF9A9A9A),
           fontWeight: FontWeight.bold,
         ),
-      ),
-    );
-  }
-
-  Widget _buildHint() {
-    return const Padding(
-      padding: EdgeInsets.only(top: 6, bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.pinch, size: 14, color: Colors.white38),
-          SizedBox(width: 6),
-          Text(
-            'Pinch with two fingers to close',
-            style: TextStyle(fontSize: 11, color: Colors.white38),
-          ),
-        ],
       ),
     );
   }

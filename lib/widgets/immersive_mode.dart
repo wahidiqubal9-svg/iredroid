@@ -13,27 +13,50 @@ class ImmersiveMode extends StatefulWidget {
 }
 
 class _ImmersiveModeState extends State<ImmersiveMode> {
+  static const MethodChannel _windowChannel = MethodChannel(
+    'org.nslabs/window',
+  );
+
   @override
   void initState() {
     super.initState();
-    _applyImmersive();
+    _enterFullscreen();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enterFullscreen();
+    });
   }
 
   @override
   void dispose() {
-    _restoreSystemUi();
+    _leaveFullscreen();
     super.dispose();
   }
 
-  Future<void> _applyImmersive() async {
+  Future<void> _enterFullscreen() async {
+    try {
+      await _windowChannel.invokeMethod('setFullscreen', {'enabled': true});
+    } catch (_) {
+      // Fall back to Flutter's system UI control.
+    }
     try {
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+        ),
+      );
     } catch (_) {
       // System UI control is unavailable on some platforms.
     }
   }
 
-  Future<void> _restoreSystemUi() async {
+  Future<void> _leaveFullscreen() async {
+    try {
+      await _windowChannel.invokeMethod('setFullscreen', {'enabled': false});
+    } catch (_) {
+      // Ignore if the platform channel is unavailable.
+    }
     try {
       await SystemChrome.setEnabledSystemUIMode(
         SystemUiMode.manual,

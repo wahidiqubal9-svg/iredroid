@@ -9,6 +9,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.annotation.NonNull
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -19,6 +22,7 @@ class MainActivity: FlutterActivity() {
     companion object {
         private const val CHANNEL = "org.nslabs/irtransmitter"
         private const val UPDATE_CHANNEL = "org.nslabs/updater"
+        private const val WINDOW_CHANNEL = "org.nslabs/window"
         private const val DEFAULT_HEX_FREQUENCY = 38028
     }
 
@@ -51,6 +55,32 @@ class MainActivity: FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WINDOW_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setFullscreen" -> {
+                        setFullscreen(call.argument<Boolean>("enabled") ?: false)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun setFullscreen(enabled: Boolean) {
+        runOnUiThread {
+            val controller = WindowInsetsControllerCompat(window, window.decorView)
+            if (enabled) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                controller.show(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.setDecorFitsSystemWindows(window, true)
+            }
+        }
     }
 
     private fun handleTransmit(call: MethodCall, result: MethodChannel.Result) {

@@ -27,11 +27,76 @@ class _FullScreenIRRemoteState extends State<FullScreenIRRemote> {
       body: ImmersiveMode(
         child: PinchToExit(
           child: SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                _buildTopBar(context),
-                Expanded(child: _buildGrid(context)),
-                _buildHint(),
+                Positioned.fill(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 58, 14, 14),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 150,
+                          childAspectRatio: 1.45,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemCount: widget.device.buttons.length,
+                    itemBuilder: (context, index) {
+                      final button = widget.device.buttons[index];
+                      return ElevatedButton(
+                        onPressed: () => _send(button),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF232323),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Colors.white12),
+                          ),
+                        ),
+                        child: Text(
+                          button.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  left: 14,
+                  right: 100,
+                  child: _buildTitle(),
+                ),
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Row(
+                    children: [
+                      if (widget.onAddToHome != null)
+                        IconButton(
+                          tooltip: _added
+                              ? 'Added to My Remotes'
+                              : 'Add to My Remotes',
+                          icon: Icon(
+                            _added
+                                ? Icons.check_circle
+                                : Icons.add_circle_outline,
+                          ),
+                          onPressed: _added ? null : _addToHome,
+                        ),
+                      IconButton(
+                        tooltip: 'Close',
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -40,112 +105,38 @@ class _FullScreenIRRemoteState extends State<FullScreenIRRemote> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
-      child: Row(
-        children: [
-          Icon(
-            _iconFor(widget.device.category),
-            size: 18,
-            color: Colors.white70,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.device.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${widget.device.category} · '
-                  '${widget.device.buttons.length} buttons',
-                  style: const TextStyle(fontSize: 11, color: Colors.white54),
-                ),
-              ],
-            ),
-          ),
-          if (widget.onAddToHome != null)
-            IconButton(
-              tooltip: _added ? 'Added to My Remotes' : 'Add to My Remotes',
-              icon: Icon(
-                _added ? Icons.check_circle : Icons.add_circle_outline,
-              ),
-              onPressed: _added ? null : _addToHome,
-            ),
-          IconButton(
-            tooltip: 'Close',
-            icon: const Icon(Icons.keyboard_arrow_down),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGrid(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 140,
-        childAspectRatio: 1.35,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: widget.device.buttons.length,
-      itemBuilder: (context, index) {
-        final button = widget.device.buttons[index];
-        return ElevatedButton(
-          onPressed: () async {
-            Haptics.tap();
-            try {
-              await IRTransmitter.transmitButton(button);
-            } catch (_) {
-              // ignore transmit errors
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF232323),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: Colors.white12),
-            ),
-          ),
+  Widget _buildTitle() {
+    return Row(
+      children: [
+        Icon(
+          _iconFor(widget.device.category),
+          size: 16,
+          color: Colors.white70,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
           child: Text(
-            button.name,
-            textAlign: TextAlign.center,
-            maxLines: 2,
+            widget.device.name,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _buildHint() {
-    return const Padding(
-      padding: EdgeInsets.only(top: 6, bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.pinch, size: 14, color: Colors.white38),
-          SizedBox(width: 6),
-          Text(
-            'Pinch with two fingers to close',
-            style: TextStyle(fontSize: 11, color: Colors.white38),
-          ),
-        ],
-      ),
-    );
+  Future<void> _send(IRButton button) async {
+    Haptics.tap();
+    try {
+      await IRTransmitter.transmitButton(button);
+    } catch (_) {
+      // ignore transmit errors
+    }
   }
 
   Future<void> _addToHome() async {
@@ -155,9 +146,9 @@ class _FullScreenIRRemoteState extends State<FullScreenIRRemote> {
     if (!mounted) return;
     if (ok) {
       setState(() => _added = true);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Added to My Remotes')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to My Remotes')),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not add this remote')),
