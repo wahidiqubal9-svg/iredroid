@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: apk-publish
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -57,19 +61,49 @@ jobs:
             echo "No KEYSTORE_BASE64 secret found; signing with the debug key."
           fi
 
-      - name: Compute version tag
+      - name: Compute version
         id: version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION_NAME="${TAG#v}"
           else
-            echo "tag=v1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            VERSION_NAME="1.0.${GITHUB_RUN_NUMBER}"
+            TAG="v${VERSION_NAME}"
           fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
 
       - name: Build release APKs
         run: |
-          flutter build apk --release --split-per-abi --build-number=${GITHUB_RUN_NUMBER}
-          flutter build apk --release --build-number=${GITHUB_RUN_NUMBER}
+          flutter build apk --release --split-per-abi \
+            --build-name="$VERSION_NAME" --build-number=${GITHUB_RUN_NUMBER}
+          flutter build apk --release \
+            --build-name="$VERSION_NAME" --build-number=${GITHUB_RUN_NUMBER}
+
+      # Publishes the universal APK to the apk branch, which gives a stable
+      # direct download URL and the version.json consumed by the in-app updater.
+      - name: Publish direct APK link (apk branch)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          APK="$GITHUB_WORKSPACE/build/app/outputs/flutter-apk/app-release.apk"
+          TMP="$(mktemp -d)"
+          cd "$TMP"
+          git init -q
+          git checkout -q -b apk
+          cp "$APK" iredroid.apk
+          SHA="$(sha256sum iredroid.apk | cut -d' ' -f1)"
+          printf '{"versionCode":%s,"versionName":"%s","apkUrl":"https://raw.githubusercontent.com/%s/apk/iredroid.apk","sha256":"%s","notes":"Build %s"}\n' \
+            "${GITHUB_RUN_NUMBER}" "$VERSION_NAME" "$GITHUB_REPOSITORY" "$SHA" "${GITHUB_RUN_NUMBER}" > version.json
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "CI build ${GITHUB_RUN_NUMBER} (v${VERSION_NAME})"
+          git -c credential.helper= push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" apk:apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
